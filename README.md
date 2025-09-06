@@ -29,6 +29,8 @@ Audits are written following structured reporting formats used in professional e
 
 ---
 
-## Disclaimer  
+## Next Steps  
 
-These audits are for **educational purposes only** and are not professional security guarantees.  
+This repo will be continuously updated with new audits as I work through different protocols and challenges.  
+Stay tuned for more reports and deeper explorations into Solidity security.  
+
