@@ -9,7 +9,7 @@
 If the owner (or a compromised owner key / deployment script) sets either value to the zero address (or clears it during an upgrade/rollback), the registry becomes partially or totally unusable.
 
 **Impact:**  
-- **Hard DoS of bidding flow:** With `depositManagerImpl == address(0)`, every `openBid(...)` call reverts due to the `depositManagerIsSet` modifier, halting new bids and escrow accounting.  
+- **Hard DoS of bidding flow:** With `depositManagerImpl == address(0)`, every `openBid(...)` call reverts due to `depositManagerIsSet` modifier, halting new bids and escrow accounting.  
 - **Settlement/Slashing DoS:** With `preconfManager == address(0)`, *all* functions guarded by `onlyPreconfManager` revert forever, blocking reward settlement (`convertFundsToProviderReward`) and unlocks on slash (`unlockFunds`). Funds can become stranded in escrow/accounting buckets.  
 - Severity: **Medium/High**, depending on admin model. A single misconfiguration bricks core functionality and can immobilize user funds until another privileged tx fixes it.
 
