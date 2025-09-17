@@ -11,8 +11,8 @@ In the `PuppyRaffle::refund` function, we first make an external call to the `ms
         require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
         require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
         
-@>       payable(msg.sender).sendValue(entranceFee);
-@>       players[playerIndex] = address(0);
+       payable(msg.sender).sendValue(entranceFee);
+      players[playerIndex] = address(0);
 
         emit RaffleRefunded(playerAddress);
     }
