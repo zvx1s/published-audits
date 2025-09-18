@@ -77,5 +77,20 @@ constructor(address bidderRegistry, address fundingEOA, uint256 minBalance) paya
 **Recommended Mitigation:**  
 Add non-zero checks and emit an `Initialized` event.
 
+### [L-1] Ether transfer to arbitrary address (pull pattern safe, but reentrancy relies on guard)
 
+**Description:**  
+`withdrawProviderAmount` transfers ETH to arbitrary provider addresses via `call`. It follows CEI and it is protected by `nonReentrant`, so it is currently safe, but is a reentrancy hotspot if patterns are changed.
+
+**Impact:**  
+Safe now, but regression risk if `nonReentrant` removed or logic reordered.
+
+**Proof of Concept:**  
+```solidity
+(bool success, ) = provider.call{value: amount}("");
+require(success, TransferToProviderFailed(provider, amount));
+```
+
+**Recommended Mitigation:**  
+Keep `nonReentrant` and document CEI invariant. Consider using OZ `PullPayment` helper pattern.
 
