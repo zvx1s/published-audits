@@ -1,0 +1,98 @@
+# Audit Findings for Core Contracts
+
+### [H-1] Withdraw cooldown uses mismatched **time units** → funds can be locked forever (Logic bug + DoS on withdrawals)
+
+**Description:**  
+`TimestampOccurrence.captureOccurrence` records a timestamp. On Ethereum/EVM chains `block.timestamp` is **seconds**. The variable name and comments indicate `bidderWithdrawalPeriodMs` is **milliseconds**. If a millisecond value is set, the comparison adds a very large number to a seconds-based timestamp, making the condition never true. That would permanently prevent withdrawals.
+
+**Impact:**  
+If deployed on a chain where `block.timestamp` is seconds, withdrawals may be permanently blocked if the parameter is set in ms.
+
+**Proof of Concept:**  
+```solidity
+require(
+    deposit.withdrawalRequestOccurrence.timestamp + bidderWithdrawalPeriodMs < block.timestamp,
+    WithdrawalPeriodNotElapsed(...)
+);
+```
+Set `bidderWithdrawalPeriodMs = 86_400_000` (1 day in ms). Condition never satisfied on seconds-based timestamp.
+
+**Recommended Mitigation:**  
+Standardize on **seconds**. Rename var to `bidderWithdrawalPeriod`. If chain uses ms, convert to seconds on input.
+
+
+### [H-2] Owner can brick core functionality by setting critical addresses to zero (Access control + Config risk)
+
+**Description:**  
+Setters for critical addresses (`depositManagerImpl`, `preconfManager`) lack zero-address checks. A misconfiguration can block all bidding and reward flows.
+
+**Impact:**  
+Misconfiguration or compromise halts the system.
+
+**Proof of Concept:**  
+```solidity
+function setPreconfManager(address contractAddress) external onlyOwner {
+    preconfManager = contractAddress;
+}
+```
+Setting to `address(0)` makes all `onlyPreconfManager` calls revert.
+
+**Recommended Mitigation:**  
+Add `require(addr != address(0))` in setters. Consider two-step upgrade flow.
+
+
+### [M-1] Batch top-ups are all-or-nothing: single provider failure reverts entire loop (Gas griefing / DoS on batches)
+
+**Description:**  
+In `DepositManager.topUpDeposits`, a failure for one provider reverts the entire batch.
+
+**Impact:**  
+One bad provider can block top-ups for all providers in a batch.
+
+**Proof of Concept:**  
+```solidity
+for (uint256 i = 0; i < length; ++i) {
+    _topUpDeposit(providers[i]); // external call, can revert
+}
+```
+If `_topUpDeposit` fails once, the whole batch reverts.
+
+**Recommended Mitigation:**  
+Wrap calls in `try/catch` and continue, or require per-provider calls.
+
+
+### [M-2] DepositManager constructor lacks zero-address validation for `BIDDER_REGISTRY`
+
+**Description:**  
+The constructor does not check that `bidderRegistry` or `fundingEOA` are non-zero.
+
+**Impact:**  
+Deployment misconfig bricks the instance or wastes funds.
+
+**Proof of Concept:**  
+```solidity
+constructor(address bidderRegistry, address fundingEOA, uint256 minBalance) payable {
+    BIDDER_REGISTRY = bidderRegistry; // can be zero
+}
+```
+
+**Recommended Mitigation:**  
+Add non-zero checks and emit an `Initialized` event.
+
+
+### [L-1] Ether transfer to arbitrary address (pull pattern safe, but reentrancy relies on guard)
+
+**Description:**  
+`withdrawProviderAmount` transfers ETH to arbitrary provider addresses via `call`. It follows CEI and is protected by `nonReentrant`, so currently safe, but is a reentrancy hotspot if patterns are changed.
+
+**Impact:**  
+Safe now, but regression risk if `nonReentrant` removed or logic reordered.
+
+**Proof of Concept:**  
+```solidity
+(bool success, ) = provider.call{value: amount}("");
+require(success, TransferToProviderFailed(provider, amount));
+```
+
+**Recommended Mitigation:**  
+Keep `nonReentrant` and document CEI invariant. Consider using OZ `PullPayment` helper pattern.
