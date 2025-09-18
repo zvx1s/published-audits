@@ -1,5 +1,3 @@
-# Audit Findings for Core Contracts
-
 ### [H-1] Withdraw cooldown uses mismatched **time units** → funds can be locked forever (Logic bug + DoS on withdrawals)
 
 **Description:**  
