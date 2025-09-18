@@ -19,6 +19,25 @@ Set `bidderWithdrawalPeriodMs = 86_400_000` (1 day in ms). Condition never satis
 Standardize on **seconds**. Rename var to `bidderWithdrawalPeriod`. If chain uses ms, convert to seconds on input.
 
 
+### [H-2] Owner can brick core functionality by setting critical addresses to zero (Access control + Config risk)
+
+**Description:**  
+Setters for critical addresses (`depositManagerImpl`, `preconfManager`) lack zero-address checks. A misconfiguration can block all bidding and reward flows.
+
+**Impact:**  
+Misconfiguration or compromise halts the system.
+
+**Proof of Concept:**  
+```solidity
+function setPreconfManager(address contractAddress) external onlyOwner {
+    preconfManager = contractAddress;
+}
+```
+Setting to `address(0)` makes all `onlyPreconfManager` calls revert.
+
+**Recommended Mitigation:**  
+Add `require(addr != address(0))` in setters. Consider two-step upgrade flow.
+
 
 ### [M-1] Batch top-ups are all-or-nothing: single provider failure reverts entire loop (Gas griefing / DoS on batches)
 
