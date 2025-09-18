@@ -14,7 +14,10 @@ Each audit includes:
   - PDF: [`2025-08-30-password-audit.pdf`](./2025-08-30-password-audit.pdf)  
 
 - **[2025-09-05] Puppy Raffle Audit**  
-  - PDF: [`2025-09-05-raffle-audit.pdf`](./2025-09-05-raffle-audit.pdf)  
+  - PDF: [`2025-09-05-raffle-audit.pdf`](./2025-09-05-raffle-audit.pdf)
+
+- **[2025-09-17] Primev Audit**
+  - Link: [`2025-09-17-primev-audit]([url](https://github.com/zvx1s/published-audits/blob/main/primev-audit))
 
 ---
 
