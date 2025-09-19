@@ -24,9 +24,9 @@ Each audit includes:
 ## Methodology  
 
 My audits focus on identifying:  
-- ❌ Critical security vulnerabilities (reentrancy, logic errors, DoS risks)  
-- ⚠️ Gas optimization issues  
-- ✅ Best practices for upgradeability and maintainability  
+- Critical security vulnerabilities (reentrancy, logic errors, DoS risks)  
+- Gas optimization issues  
+- Best practices for upgradeability and maintainability  
 
 Audits are written following structured reporting formats used in professional engagements.  
 
