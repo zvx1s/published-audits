@@ -1,4 +1,4 @@
-## Summary
+## Summary 
 `depositEvenlyAsBidder` uses a `uint16` loop counter while iterating up to `providers.length` which is a `uint256`. When `providers.length >= 65_536`, the `++i` increment overflows and Solidity 0.8 reverts with Panic 0x11, which causes a denial of service for the entire call.
 
 ## Finding Description
