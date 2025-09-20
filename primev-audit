@@ -15,7 +15,7 @@ The function `depositEvenlyAsBidder` uses a `uint16` loop counter to iterate thr
                _depositAsBidder(provider, amount);
        }
 ```
-
+ 
 ## Impact Explanation 
 For inputs with `providers.length >= 65_536`, calls to `depositEvenlyAsBidder` revert which creates a hard upper bound and denial of service on batch deposits. Even if large batches are uncommon, the function is public and unbounded, so integrators can't depend on it for batches which are very large.
 
