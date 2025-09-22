@@ -19,6 +19,8 @@ Each audit includes:
 - **[2025-09-17] Primev Audit**
   - Link: [`2025-09-17-primev-audit`](https://github.com/zvx1s/published-audits/blob/main/primev-audit)
 
+- **[2025-09-21] Octant Audit**
+
 ---
 
 ## Methodology  
