@@ -2,7 +2,7 @@
 
 This repository contains my independent security audits of Solidity smart contracts.  
 Each audit includes:  
-- 📄 A full PDF report with findings, impact analysis, and mitigations  
+- 📄 A full PDF report with findings, impact analysis, and recommended mitigations  
 - 🧪 Test cases and proofs of concept (when relevant)  
 - 📝 Notes on methodology and key learnings  
 
