@@ -20,6 +20,7 @@ Each audit includes:
   - Link: [`2025-09-17-primev-audit`](https://github.com/zvx1s/published-audits/blob/main/primev-audit)
 
 - **[2025-09-21] Octant Audit**
+  - Link: [`2025-09-21-octant-v2-audit`](TBD)
 
 ---
 
