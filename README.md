@@ -10,7 +10,7 @@ Each audit includes:
 
 ## Audits  
 
-- **[2025-08-30] Password Store Audit**  
+- **[2025-08-30] Password Store Audit** 
   - PDF: [`2025-08-30-password-audit.pdf`](./2025-08-30-password-audit.pdf)  
 
 - **[2025-09-05] Puppy Raffle Audit**  
