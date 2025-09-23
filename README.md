@@ -1,4 +1,4 @@
-# Smart Contract Security Audits  
+# Smart Contract Security Audits
 
 This repository contains my independent security audits of Solidity smart contracts.  
 Each audit includes:  
